@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html style="height:100%;">
+<head>
+    <title>Peta Leaflet</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="/styles.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+    crossorigin=""/>     
+    <!-- Make sure you put this AFTER Leaflet's CSS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+     crossorigin=""></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+</head>
+<body style="height:100%; margin:0;">
+    <nav class="navbar">
+        <a href="/index.html">Map and Marker</a>
+        <a href="/more_marker.html">More Marker</a>
+        <a href="/marker_cluster.html">Marker Cluster</a>
+        <a href="/polyline.html">Polyline</a>
+        <a href="/routing.html">Routing</a>
+        <a href="/hospital.html">Hospital</a>
+    </nav>
+    <div id="map-container">
+        <div id="mapid"></div>
+
+
+        <div id="inputForm">
+            <input type="text" id="namaRS" name="namaRS" placeholder="Nama RS" class="col">
+            <input type="text" id="latitude" name="latitude" placeholder="Latitude" class="col">
+            <input type="text" id="longitude" name="longitude" placeholder="Longitude" class="col">
+            <input type="text" id="alamatRS" name="alamatRS" placeholder="Alamat RS" class="col">
+        </div>
+        <button id="btnKirim">Simpan</button>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.3/dist/leaflet.min.js"></script>
+    <script>
+        var mymap = L.map('mapid').setView([-8.4095188, 115.188919], 11);
+
+        var defaultLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: 'Map data © <a href="https://openstreetmap.org">OpenStreetMap</a> contributors',
+            maxZoom: 18,
+        }).addTo(mymap);
+
+        var satelliteLayer = L.tileLayer('https://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
+            maxZoom: 20,
+            subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
+        });
+
+        var baseLayers = {
+            "Default": defaultLayer,
+            "Satelit": satelliteLayer
+        };
+
+        var markers = [];
+        var isOnDrag = false;
+
+        var myIcon = L.icon({
+            iconUrl: '3d-map.png',
+            iconSize: [40, 40],
+            iconAnchor: [20, 40],
+        });
+
+        var hospitalNames = [
+            "Rumah Sakit Riko",
+            "Rumah Sakit Puri Raharja",
+            "Rumah Sakit Trijata",
+            "Rumah Sakit Dharma Yadnya",
+            "Rumah Sakit Sanglah"
+        ];
+
+        formatContent = function(lat, lng, index, hospitalName) {
+            return `
+                <div class="wrapper">
+                    <div class="row">
+                        <div class="cell merged" style="text-align:center">Marker [ ${index+1} ]</div>
+                    </div>
+                    <div class="row">
+                        <div class="col">Nama Rumah Sakit</div>
+                        <div class="col2">${hospitalName}</div>
+                    </div>
+                    <div class="row">
+                        <div class="col">Latitude</div>
+                        <div class="col2">${lat}</div>
+                    </div>
+                    <div class="row">
+                        <div class="col">Longitude</div>
+                        <div class="col2">${lng}</div>
+                    </div>
+                    <div class="row">
+                        <div class="col">Left click</div>
+                        <div class="col2">New marker / show popup</div>
+                    </div>
+                    <div class="row">
+                        <div class="col">Right click</div>
+                        <div class="col2">Delete marker</div>
+                    </div>
+                </div>
+            `;
+        }
+
+        addMarker = function(latlng, index, hospitalName) {
+            var marker = L.marker(latlng, {
+                icon: myIcon,
+                draggable: true
+            }).addTo(mymap);
+
+            var popup  = L.popup({
+                offset: [0, -30]
+            }).setLatLng(latlng);
+
+            marker.bindPopup(popup);
+
+            marker.on('click', function() {
+                popup.setLatLng(marker.getLatLng());
+                popup.setContent(formatContent(marker.getLatLng().lat, marker.getLatLng().lng, index, hospitalName));
+            });
+
+            marker.on('dragstart', function(event) {
+                isOnDrag = true;
+            });
+
+            marker.on('drag', function(event) {
+                popup.setLatLng(marker.getLatLng());
+                popup.setContent(formatContent(marker.getLatLng().lat, marker.getLatLng().lng, index, hospitalName));
+                marker.openPopup();
+            });
+
+            marker.on('dragend', function(event) {
+                setTimeout(function() {
+                    isOnDrag = false;
+                }, 500);
+            });
+
+            marker.on('contextmenu', function(event) {
+                markers.forEach(function(m, i) {
+                    if (marker == m) {
+                        m.removeFrom(mymap);
+                        markers.splice(i, 1);
+                        mymap.zoomOut();                     }
+                });
+            });
+
+            return marker;
+        }
+
+        mymap.on('click', function(e) {
+            if (!isOnDrag) {
+                var randomHospitalName = hospitalNames[Math.floor(Math.random() * hospitalNames.length)];
+                var newMarker = addMarker(e.latlng, markers.length, randomHospitalName);
+                markers.push(newMarker);
+            }
+        });
+
+        var btnKirim = document.getElementById('btnKirim');
+        btnKirim.addEventListener('click', function() {
+            var namaRS = document.getElementById('namaRS').value;
+            var latitude = document.getElementById('latitude').value;
+            var longitude = document.getElementById('longitude').value;
+            var alamatRS = document.getElementById('alamatRS').value;
+
+            var data = {
+                nama_rs: namaRS,
+                latlng_rs: latitude + ',' + longitude,
+                alamat_rs: alamatRS
+            };
+
+            fetch("/process", { 
+                method: "POST",
+                body: JSON.stringify(data),
+                headers: {
+                    "Content-Type": "application/json"
+                }
+            }).then(function(response) {
+                return response.json();
+            }).then(function(data) {
+                console.log(data);
+            }).catch(function(error) {
+                console.log(error);
+            });
+        });
+
+        fetch("/getData").then(function(response) { 
+            return response.json();
+        }).then(function(data) {
+            data.forEach(function(c, i) {
+                var latlng = L.latLng(c.latlng_rs.split(',')[0], c.latlng_rs.split(',')[1]); 
+                var randomHospitalName = hospitalNames[Math.floor(Math.random() * hospitalNames.length)];
+                var newMarker = addMarker(latlng, markers.length, randomHospitalName);
+                markers.push(newMarker);
+            })
+        }).catch(function(error) {
+            console.log(error);
+        });
+
+        L.control.layers(baseLayers).addTo(mymap);
+
+        
+        mymap.on('click', function(e) {
+            mymap.setView(e.latlng, mymap.getZoom() + 1);
+        });
+    </script>
+</body>
+
+</html>
